@@ -1,98 +1,156 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Courier API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+API de gestión de envíos (paquetería) construida con **NestJS** y **TypeORM**, aplicando arquitectura hexagonal y patrones de diseño.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Stack Tecnológico
 
-## Description
+- **NestJS 11** - Framework progresivo de Node.js
+- **TypeScript** - Tipado estático
+- **TypeORM** - ORM para persistencia
+- **PostgreSQL** - Base de datos relacional
+- **Kafka** (via confluentinc/cp-kafka) - Broker de eventos
+- **Swagger** - Documentación OpenAPI
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+### ¿Por qué este stack?
 
-## Project setup
+NestJS proporciona una arquitectura modular y estructurada ideal para aplicar patrones de diseño. TypeORM facilita el mapeo objeto-relacional respetando la separación entre modelo de dominio y entidad de persistencia. Kafka permite implementar el patrón Observer de forma desacoplada.
 
-```bash
-$ npm install
+## Arquitectura
+
+El proyecto sigue **Arquitectura Hexagonal** (Ports and Adapters) con separación clara de responsabilidades:
+
+```
+src/
+├── customers/           # Módulo de Clientes
+│   ├── domain/         # Modelos, puertos (interfaces), excepciones
+│   ├── application/    # DTOs, casos de uso
+│   └── infrastructure/ # Controladores, persistencia (TypeORM)
+├── shipments/          # Módulo de Envíos
+│   ├── domain/         # Modelos, puertos, excepciones
+│   ├── application/     # DTOs, casos de uso, estrategias
+│   └── infrastructure/ # Controladores, persistencia
+└── shared/             # Código compartido
+    ├── events/         # Puerto EventPublisher, KafkaEventPublisher
+    └── infrastructure/ # Consumers de Kafka
 ```
 
-## Compile and run the project
+### Patrones Aplicados
+
+1. **Arquitectura Hexagonal** - Separación domain/application/infrastructure
+2. **Strategy Pattern** - Para cálculo de costos de envío según tipo
+3. **Observer Pattern** - Para eventos de envíos via Kafka
+4. **Mapper Pattern** - Conversión entre entidades ORM y modelos de dominio
+5. **Dependency Injection** - Inyección de puertos y casos de uso
+
+## Estrategias de Envío (Strategy Pattern)
+
+| Tipo | Costo | Estado Final | Validaciones |
+|------|-------|--------------|--------------|
+| `STANDARD` | 0.1% de declaredValue (mín $5,000) | `DELIVERED` | weightKg ≤ 20 |
+| `EXPRESS` | $15,000 fijo | `DELIVERED` | weightKg ≤ 5, declaredValue ≤ 3,000,000 |
+| `INTERNATIONAL` | $50,000 + 2% de declaredValue | `IN_CUSTOMS` | destinationCountry y customsDeclaration obligatorios |
+| `THIRD_PARTY_CARRIER` | 5% de declaredValue | `DELIVERED` | carrierName y externalTrackingId obligatorios |
+
+## Prerrequisitos
+
+- Node.js ≥ 18
+- Docker y Docker Compose
+- npm
+
+## Pasos para Levantar la Aplicación
+
+### 1. Clonar el repositorio
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+git clone <repo-url>
+cd courier-api
 ```
 
-## Run tests
+### 2. Instalar dependencias
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+npm install
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+### 3. Levantar servicios de infraestructura
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+docker-compose up -d
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+Esto iniciará:
+- **PostgreSQL** en puerto 5432
+- **Kafka** en puerto 9092 (con KRaft mode, sin Zookeeper)
 
-## Resources
+### 4. Ejecutar la aplicación
 
-Check out a few resources that may come in handy when working with NestJS:
+```bash
+npm run start:dev
+```
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+La aplicación estará disponible en `http://localhost:3000`
 
-## Support
+### 5. Acceder a la documentación Swagger
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+```
+http://localhost:3000/api/docs
+```
 
-## Stay in touch
+### 6. (Opcional) UI de Kafka
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+Puedes usar herramientas como **kafka-ui** para visualizar topics y mensajes:
 
-## License
+```bash
+docker run -d --network host -e KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=localhost:9092 -e KAFKA_CLUSTERS_0_NAME=local provectuslabs/kafka-ui:latest
+```
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+Luego accede a `http://localhost:8080`
+
+## Variables de Entorno
+
+Configuradas en `.env`:
+
+```
+PORT=3000
+DB_HOST=localhost
+DB_PORT=5432
+DB_USERNAME=postgres
+DB_PASSWORD=postgres
+DB_NAME=courier
+KAFKA_BROKER=localhost:9092
+```
+
+## API Endpoints
+
+### Customers
+- `POST /api/customers` - Crear cliente
+- `GET /api/customers` - Listar todos
+- `GET /api/customers/:id` - Obtener por ID
+- `PATCH /api/customers/:id` - Actualizar (name, role)
+- `DELETE /api/customers/:id` - Desactivar (soft delete)
+
+### Shipments
+- `POST /api/shipments` - Crear envío (ejecuta Strategy + publica evento)
+- `GET /api/shipments/:id` - Obtener por ID
+- `GET /api/shipments/customer/:id` - Envíos por cliente
+
+## Eventos Kafka
+
+Cuando se crea un envío, se publica un evento según el estado resultante:
+
+- `shipment.dispatched` - Para envíos con estado `DELIVERED`
+- `shipment.in_customs` - Para envíos con estado `IN_CUSTOMS`
+- `shipment.failed` - Para envíos con estado `FAILED`
+
+### Consumers
+
+1. **NotificationsConsumer** - Simula envío de notificaciones (console.log estructurado)
+2. **AuditConsumer** - Registra traza de auditoría (topic, offset, shipmentId, timestamp)
+
+## Ejemplos de Uso
+
+Ver archivo `courier.http` para ejemplos completos de las 4 estrategias y casos de error.
+
+## Commits
+
+El historial de commits sigue buenas prácticas con mensajes descriptivos y atómicos.

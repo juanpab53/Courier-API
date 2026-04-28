@@ -1,0 +1,226 @@
+### Courier API - Ejemplos de uso
+### Base URL: http://localhost:3000
+
+### ============================================
+### 1. CREAR CLIENTES (Sender y Recipient)
+### ============================================
+
+### Crear Sender
+POST http://localhost:3000/api/customers
+Content-Type: application/json
+
+{
+  "name": "Juan Aparicio",
+  "email": "juan.sender@example.com",
+  "password": "password123",
+  "role": "SENDER"
+}
+
+### Crear Recipient
+POST http://localhost:3000/api/customers
+Content-Type: application/json
+
+{
+  "name": "Maria Lopez",
+  "email": "maria.recipient@example.com",
+  "password": "password123",
+  "role": "SENDER"
+}
+
+### ============================================
+### 2. ESTRATEGIA STANDARD (0.1% de declaredValue, mín $5000, peso ≤ 20kg)
+### ============================================
+
+POST http://localhost:3000/api/shipments
+Content-Type: application/json
+
+{
+  "senderId": "REEMPLAZAR_CON_ID_DEL_SENDER",
+  "recipientId": "REEMPLAZAR_CON_ID_DEL_RECIPIENT",
+  "declaredValue": 10000000,
+  "type": "STANDARD",
+  "metadata": {
+    "weightKg": 15
+  }
+}
+
+### Respuesta esperada: 201 Created
+### shippingCost = 10000000 * 0.001 = 10000 (mayor al mínimo de 5000)
+### status = "DELIVERED"
+
+### ============================================
+### 3. ESTRATEGIA EXPRESS ($15000 fijo, peso ≤ 5kg, valor ≤ 3,000,000)
+### ============================================
+
+POST http://localhost:3000/api/shipments
+Content-Type: application/json
+
+{
+  "senderId": "REEMPLAZAR_CON_ID_DEL_SENDER",
+  "recipientId": "REEMPLAZAR_CON_ID_DEL_RECIPIENT",
+  "declaredValue": 2000000,
+  "type": "EXPRESS",
+  "metadata": {
+    "weightKg": 3
+  }
+}
+
+### Respuesta esperada: 201 Created
+### shippingCost = 15000 (fijo)
+### status = "DELIVERED"
+
+### ============================================
+### 4. ESTRATEGIA INTERNATIONAL ($50000 + 2%, requiere destinationCountry, valor ≤ 50,000,000)
+### ============================================
+
+POST http://localhost:3000/api/shipments
+Content-Type: application/json
+
+{
+  "senderId": "REEMPLAZAR_CON_ID_DEL_SENDER",
+  "recipientId": "REEMPLAZAR_CON_ID_DEL_RECIPIENT",
+  "declaredValue": 20000000,
+  "type": "INTERNATIONAL",
+  "metadata": {
+    "destinationCountry": "Estados Unidos",
+    "customsDeclaration": "Contenido: Documentos importantes"
+  }
+}
+
+### Respuesta esperada: 201 Created
+### shippingCost = 50000 + (20000000 * 0.02) = 50000 + 400000 = 450000
+### status = "IN_CUSTOMS"
+
+### ============================================
+### 5. ESTRATEGIA THIRD_PARTY_CARRIER (5% de declaredValue, requiere carrierName y externalTrackingId)
+### ============================================
+
+POST http://localhost:3000/api/shipments
+Content-Type: application/json
+
+{
+  "senderId": "REEMPLAZAR_CON_ID_DEL_SENDER",
+  "recipientId": "REEMPLAZAR_CON_ID_DEL_RECIPIENT",
+  "declaredValue": 5000000,
+  "type": "THIRD_PARTY_CARRIER",
+  "metadata": {
+    "carrierName": "DHL",
+    "externalTrackingId": "DHL-123456789"
+  }
+}
+
+### Respuesta esperada: 201 Created
+### shippingCost = 5000000 * 0.05 = 250000
+### status = "DELIVERED"
+
+### ============================================
+### 6. CASOS DE ERROR
+### ============================================
+
+### ERROR 1: EXPRESS con peso > 5kg (debería retornar 400)
+POST http://localhost:3000/api/shipments
+Content-Type: application/json
+
+{
+  "senderId": "REEMPLAZAR_CON_ID_DEL_SENDER",
+  "recipientId": "REEMPLAZAR_CON_ID_DEL_RECIPIENT",
+  "declaredValue": 2000000,
+  "type": "EXPRESS",
+  "metadata": {
+    "weightKg": 10
+  }
+}
+
+### Respuesta esperada: 400 Bad Request
+### Mensaje: "Express shipping requires weight <= 5kg"
+
+### ERROR 2: INTERNATIONAL sin destinationCountry (debería retornar 400)
+POST http://localhost:3000/api/shipments
+Content-Type: application/json
+
+{
+  "senderId": "REEMPLAZAR_CON_ID_DEL_SENDER",
+  "recipientId": "REEMPLAZAR_CON_ID_DEL_RECIPIENT",
+  "declaredValue": 20000000,
+  "type": "INTERNATIONAL",
+  "metadata": {
+    "customsDeclaration": "Contenido: Documentos"
+  }
+}
+
+### Respuesta esperada: 400 Bad Request
+### Mensaje: "International shipping requires destination country"
+
+### ERROR 3: THIRD_PARTY_CARRIER sin carrierName (debería retornar 400)
+POST http://localhost:3000/api/shipments
+Content-Type: application/json
+
+{
+  "senderId": "REEMPLAZAR_CON_ID_DEL_SENDER",
+  "recipientId": "REEMPLAZAR_CON_ID_DEL_RECIPIENT",
+  "declaredValue": 5000000,
+  "type": "THIRD_PARTY_CARRIER",
+  "metadata": {
+    "externalTrackingId": "TRACK-123"
+  }
+}
+
+### Respuesta esperada: 400 Bad Request
+### Mensaje: "Third party carrier requires carrier name"
+
+### ERROR 4: Crear customer con email duplicado (debería retornar 409)
+POST http://localhost:3000/api/customers
+Content-Type: application/json
+
+{
+  "name": "Otro Juan",
+  "email": "juan.sender@example.com",
+  "password": "password123",
+  "role": "SENDER"
+}
+
+### Respuesta esperada: 409 Conflict
+### Mensaje: "Email already exists"
+
+### ERROR 5: Obtener envío con ID inexistente (debería retornar 404)
+GET http://localhost:3000/api/shipments/00000000-0000-0000-0000-000000000000
+
+### Respuesta esperada: 404 Not Found
+### Mensaje: "Shipment with id 00000000-0000-0000-0000-000000000000 not found"
+
+### ============================================
+### 7. CONSULTAS (LECTURA)
+### ============================================
+
+### Listar todos los clientes
+GET http://localhost:3000/api/customers
+
+### Obtener cliente por ID
+GET http://localhost:3000/api/customers/REEMPLAZAR_CON_ID_DEL_SENDER
+
+### Listar todos los envíos de un cliente (como sender o recipient)
+GET http://localhost:3000/api/shipments/customer/REEMPLAZAR_CON_ID_DEL_SENDER
+
+### Obtener envío por ID
+GET http://localhost:3000/api/shipments/REEMPLAZAR_CON_ID_DEL_SHIPMENT
+
+### ============================================
+### 8. ACTUALIZACIÓN Y ELIMINACIÓN
+### ============================================
+
+### Actualizar cliente
+PATCH http://localhost:3000/api/customers/REEMPLAZAR_CON_ID_DEL_SENDER
+Content-Type: application/json
+
+{
+  "name": "Juan Aparicio Actualizado",
+  "role": "ADMIN"
+}
+
+### Eliminar cliente (soft delete)
+DELETE http://localhost:3000/api/customers/REEMPLAZAR_CON_ID_DEL_SENDER
+
+### ============================================
+### NOTA: Reemplazar los IDs con los valores reales obtenidos
+### al crear los clientes y envíos
+### ============================================
